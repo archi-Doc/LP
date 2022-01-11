@@ -80,11 +80,11 @@ public class BasicTestSubcommand : ISimpleCommandAsync<BasicTestOptions>
             }*/
 
             var tt1 = testService.Increment(3);
-            var tt2 = testService.Send(1, 2);
-            var tt3 = testService.Send2(2, 3);
+            // var tt2 = testService.Send(1, 2);
+            // var tt3 = testService.Send2(2, 3);
             Logger.Priority.Information(tt1.ResponseAsync.Result.ToString());
-            Logger.Priority.Information(tt2.ResponseAsync.Result.ToString());
-            Logger.Priority.Information(tt3.ResponseAsync.Result.ToString());
+            // Logger.Priority.Information(tt2.ResponseAsync.Result.ToString());
+            // Logger.Priority.Information(tt3.ResponseAsync.Result.ToString());
 
             var res = await tt1.ResponseAsync;
             if (res.IsSuccess)

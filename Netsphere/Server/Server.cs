@@ -44,7 +44,7 @@ public class Server
                 else if (received.Result == NetResult.Timeout ||
                     received.Result == NetResult.NoReceiver)
                 {
-                    this.NetTerminal.SendClose();
+                    await this.NetTerminal.SendClose();
                     break;
                 }
                 else if (received.Result == NetResult.Closed)
@@ -54,7 +54,7 @@ public class Server
             }
             finally
             {
-                terminal.ClearSender();
+                await terminal.ClearSender();
             }
         }
 

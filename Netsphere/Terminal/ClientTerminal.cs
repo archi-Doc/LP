@@ -25,13 +25,13 @@ public class ClientTerminal : NetTerminal
             return NetResult.NoNodeInformation;
         }
 
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.EncryptConnectionAsync().ConfigureAwait(false);
         }
     }
 
-    public unsafe override void SendClose()
+    public override async Task SendClose()
     {// Checked
         if (this.IsClosed)
         {
@@ -44,25 +44,21 @@ public class ClientTerminal : NetTerminal
             return;
         }
 
-        using (var operation = new ClientOperation(this))
+        await using(var operation = new ClientOperation(this))
         {
             this.CreateHeader(out var header, operation.GetGene());
             header.Id = PacketId.Close;
 
-            var arrayOwner = PacketPool.Rent();
-            fixed (byte* bp = arrayOwner.ByteArray)
-            {
-                *(PacketHeader*)bp = header;
-            }
+            this.HeaderToMemoryOwner(ref header, out var owner);
 
-            this.Terminal.AddRawSend(this.Endpoint, arrayOwner.ToMemoryOwner(0, PacketService.HeaderSize));
+            this.Terminal.AddRawSend(this.Endpoint, owner);
         }
     }
 
     public async Task<NetResult> SendPacketAsync<TSend>(TSend value)
         where TSend : IPacket
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using(var operation = this.CreateOperation())
         {
             return await operation.SendPacketAsync(value).ConfigureAwait(false);
         }
@@ -71,7 +67,7 @@ public class ClientTerminal : NetTerminal
     public async Task<(NetResult Result, TReceive? Value)> SendPacketAndReceiveAsync<TSend, TReceive>(TSend value)
         where TSend : IPacket
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.SendPacketAndReceiveAsync<TSend, TReceive>(value).ConfigureAwait(false);
         }
@@ -79,7 +75,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<NetResult> SendAsync<TSend>(TSend value)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.SendAsync(value);
         }
@@ -87,7 +83,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<NetResult> SendDataAsync(ulong dataId, ByteArrayPool.MemoryOwner data)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.SendDataAsync(true, PacketId.Data, dataId, data).ConfigureAwait(false);
         }
@@ -95,7 +91,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<NetResult> SendDataAsync(ulong dataId, byte[] data)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.SendDataAsync(true, PacketId.Data, dataId, new ByteArrayPool.MemoryOwner(data)).ConfigureAwait(false);
         }
@@ -103,7 +99,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<NetResult> SendServiceAsync(ulong dataId, ByteArrayPool.MemoryOwner data)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.SendDataAsync(true, PacketId.Rpc, dataId, data).ConfigureAwait(false);
         }
@@ -111,7 +107,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<(NetResult Result, TReceive? Value)> SendAndReceiveAsync<TSend, TReceive>(TSend value)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             return await operation.SendAndReceiveAsync<TSend, TReceive>(value);
         }
@@ -119,7 +115,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<(NetResult Result, ByteArrayPool.MemoryOwner Value)> SendAndReceiveDataAsync(ulong dataId, ByteArrayPool.MemoryOwner data)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             var response = await operation.SendAndReceiveDataAsync(true, PacketId.Data, dataId, data).ConfigureAwait(false);
             return (response.Result, response.Received);
@@ -128,7 +124,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<(NetResult Result, ByteArrayPool.MemoryOwner Value)> SendAndReceiveDataAsync(ulong dataId, byte[] data)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             var response = await operation.SendAndReceiveDataAsync(true, PacketId.Data, dataId, new ByteArrayPool.MemoryOwner(data)).ConfigureAwait(false);
             return (response.Result, response.Received);
@@ -137,7 +133,7 @@ public class ClientTerminal : NetTerminal
 
     public async Task<(NetResult Result, ByteArrayPool.MemoryOwner Value)> SendAndReceiveServiceAsync(ulong dataId, ByteArrayPool.MemoryOwner data)
     {// Checked
-        using (var operation = this.CreateOperation())
+        await using (var operation = this.CreateOperation())
         {
             var response = await operation.SendAndReceiveDataAsync(true, PacketId.Rpc, dataId, data).ConfigureAwait(false);
             return (response.Result, response.Received);

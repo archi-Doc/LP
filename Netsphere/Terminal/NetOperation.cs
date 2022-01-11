@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Netsphere;
 
-internal abstract class NetOperation : IDisposable
+internal abstract class NetOperation : IAsyncDisposable
 {
     internal NetOperation(NetTerminal netTerminal)
     {
@@ -86,7 +86,7 @@ internal abstract class NetOperation : IDisposable
     }
 
     /// <inheritdoc/>
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         this.Dispose(true);
         GC.SuppressFinalize(this);

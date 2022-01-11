@@ -49,6 +49,14 @@ public class ByteArrayPool
         /// <summary>
         ///  Increment the reference count.
         /// </summary>
+        public void Increment()
+        {
+            Interlocked.Increment(ref this.count);
+        }
+
+        /// <summary>
+        ///  Increment the reference count.
+        /// </summary>
         /// <returns><see cref="Owner"/> instance (<see langword="this"/>).</returns>
         public Owner IncrementAndShare()
         {
@@ -160,6 +168,19 @@ public class ByteArrayPool
         {
             this.Owner = owner;
             this.Memory = memory;
+        }
+
+        /// <summary>
+        ///  Increment the reference count.
+        /// </summary>
+        public void Increment()
+        {
+            if (this.Owner == null)
+            {
+                throw new InvalidOperationException();
+            }
+
+            this.Owner.Increment();
         }
 
         /// <summary>

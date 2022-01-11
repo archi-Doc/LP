@@ -72,7 +72,7 @@ public partial class NetTerminal : IDisposable
 
     public virtual async Task<NetResult> EncryptConnectionAsync() => NetResult.NoEncryptedConnection;
 
-    public virtual void SendClose()
+    public virtual async Task SendClose()
     {
     }
 
@@ -111,6 +111,17 @@ public partial class NetTerminal : IDisposable
         header = default;
         header.Gene = gene;
         header.Engagement = this.NodeAddress.Engagement;
+    }
+
+    internal unsafe void HeaderToMemoryOwner(ref PacketHeader header, out ByteArrayPool.MemoryOwner owner)
+    {
+        var arrayOwner = PacketPool.Rent();
+        fixed (byte* bp = arrayOwner.ByteArray)
+        {
+            *(PacketHeader*)bp = header;
+        }
+
+        owner = arrayOwner.ToMemoryOwner();
     }
 
     internal unsafe void SendAck(ulong gene)
@@ -414,7 +425,7 @@ public partial class NetTerminal : IDisposable
                 // free managed resources.
                 if (this.IsEncrypted && !this.IsClosed)
                 {// Close connection.
-                    this.SendClose();
+                    this.SendClose().Wait(); // temporary
                 }
 
                 this.IsClosed = true;

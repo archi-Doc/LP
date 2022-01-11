@@ -29,7 +29,7 @@ public class ServerTerminal : NetTerminal
         this.EnsureReceiver();
     }
 
-    public unsafe override void SendClose()
+    public unsafe override async Task SendClose()
     {// Checked
         if (this.IsClosed)
         {
@@ -80,7 +80,7 @@ public class ServerTerminal : NetTerminal
         }
 
         var result = await operation.SendPacketAsync(value);
-        operation.Dispose();
+        await operation.DisposeAsync();
         return result;
     }
 
@@ -92,7 +92,7 @@ public class ServerTerminal : NetTerminal
         }
 
         var result = await operation.SendAsync(value);
-        operation.Dispose();
+        await operation.DisposeAsync();
         return result;
     }
 
@@ -104,7 +104,7 @@ public class ServerTerminal : NetTerminal
         }
 
         var result = await operation.SendDataAsync(true, PacketId.Data, dataId, data).ConfigureAwait(false);
-        operation.Dispose();
+        await operation.DisposeAsync();
         return result;
     }
 
@@ -116,7 +116,7 @@ public class ServerTerminal : NetTerminal
         }
 
         var result = await operation.SendDataAsync(true, PacketId.Data, dataId, new ByteArrayPool.MemoryOwner(data)).ConfigureAwait(false);
-        operation.Dispose();
+        await operation.DisposeAsync();
         return result;
     }
 
@@ -128,7 +128,7 @@ public class ServerTerminal : NetTerminal
         }
 
         var result = await operation.SendDataAsync(true, PacketId.Rpc, dataId, data).ConfigureAwait(false);
-        operation.Dispose();
+        await operation.DisposeAsync();
         return result;
     }
 
@@ -140,11 +140,11 @@ public class ServerTerminal : NetTerminal
         }
     }
 
-    public void ClearSender()
+    public async Task ClearSender()
     {// Checked
         while (this.senderQueue.TryDequeue(out var operation))
         {
-            operation.Dispose();
+            await operation.DisposeAsync();
         }
     }
 
