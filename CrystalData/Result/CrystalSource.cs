@@ -7,5 +7,6 @@ public enum CrystalSource
     NoSource,
     File,
     Storage,
+    StorageGroup,
     Journal,
 }

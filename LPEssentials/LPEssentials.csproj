@@ -20,7 +20,7 @@
   <ItemGroup>
     <PackageReference Include="Arc.Collections" Version="1.6.0" />
     <PackageReference Include="Arc.CrossChannel" Version="1.1.0" />
-    <PackageReference Include="Arc.Threading" Version="0.21.1" />
+    <PackageReference Include="Arc.Threading" Version="0.21.2" />
     <PackageReference Include="Arc.Crypto" Version="1.13.0" />
     <PackageReference Include="Arc.Unit" Version="0.5.5" />
     <PackageReference Include="BigMachines" Version="0.25.0" />

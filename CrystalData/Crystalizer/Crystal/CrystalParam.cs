@@ -2,12 +2,12 @@
 
 namespace CrystalData;
 
-public record CrystalStartParam(bool ForceStart = false, CrystalStartQueryDelegate? QueryDelegate = null, bool FromScratch = false)
+public record CrystalPrepareParam(bool ForceStart = false, CrystalPrepareQueryDelegate? QueryDelegate = null, bool FromScratch = false, bool AllowExistingOnly = false)
 {
-    public static readonly CrystalStartParam Default = new(true);
+    public static readonly CrystalPrepareParam Default = new(true);
 
-    public Task<AbortOrComplete> Query(CrystalStartResult query, string[]? list = null)
-        => this.QueryDelegate == null || this.ForceStart ? Task.FromResult(AbortOrComplete.Complete) : this.QueryDelegate(query, list);
+    public Task<AbortOrContinue> Query(CrystalSourceAndResult query, string[]? list = null)
+        => this.QueryDelegate == null || this.ForceStart ? Task.FromResult(AbortOrContinue.Continue) : this.QueryDelegate(query, list);
 }
 
 public record CrystalStopParam(bool RemoveAll = false)
@@ -27,4 +27,4 @@ public enum CrystalStartResult
     NoJournal,
 }
 
-public delegate Task<AbortOrComplete> CrystalStartQueryDelegate(CrystalStartResult query, string[]? list);
+public delegate Task<AbortOrContinue> CrystalPrepareQueryDelegate(CrystalSourceAndResult query, string[]? list);

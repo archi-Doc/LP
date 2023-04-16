@@ -4,15 +4,19 @@ namespace CrystalData;
 
 public readonly struct CrystalSourceAndResult
 {
+    public static readonly CrystalSourceAndResult Success = new(CrystalSource.NoSource, CrystalResult.Success);
+
     public CrystalSourceAndResult(CrystalSource source, CrystalResult result)
     {
         this.Source = source;
         this.Result = result;
     }
 
-    public bool IsSuccess => this.Result == CrystalResult.Success;
-
     public readonly CrystalSource Source;
 
     public readonly CrystalResult Result;
+
+    public bool IsSuccess => this.Result == CrystalResult.Success;
+
+    public bool IsFailure => this.Result != CrystalResult.Success;
 }

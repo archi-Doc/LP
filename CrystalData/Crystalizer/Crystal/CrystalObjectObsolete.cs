@@ -191,7 +191,7 @@ namespace CrystalData;
         var result = await this.filer.PrepareAndCheck(this.Crystalizer, this.CrystalConfiguration.FileConfiguration).ConfigureAwait(false);
         if (result != CrystalResult.Success)
         {
-            if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Abort)
+            if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrContinue.Abort)
             {
                 return CrystalStartResult.DirectoryError;
             }
@@ -201,7 +201,7 @@ namespace CrystalData;
         var memoryResult = await this.filer.ReadAsync(0, -1).ConfigureAwait(false);
         if (!memoryResult.IsSuccess)
         {
-            if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Complete)
+            if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrContinue.Continue)
             {
                 ReconstructObject();
             }

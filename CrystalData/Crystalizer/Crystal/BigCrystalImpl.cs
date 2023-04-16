@@ -63,7 +63,11 @@ public class BigCrystalImpl<TData> : CrystalObject<TData>, IBigCrystal<TData>, I
         {
             if (!this.Prepared)
             {
-                await this.PrepareAndLoadInternal(null).ConfigureAwait(false);
+                var result = await this.PrepareAndLoadInternal(null).ConfigureAwait(false);
+                if (result.IsFailure)
+                {
+                    return result.Result;
+                }
             }
 
             // Save & Unload datum and metadata.
@@ -138,9 +142,9 @@ public class BigCrystalImpl<TData> : CrystalObject<TData>, IBigCrystal<TData>, I
 
     #endregion
 
-    protected override async Task<CrystalStartResult> PrepareAndLoadInternal(CrystalStartParam? param)
+    protected override async Task<CrystalSourceAndResult> PrepareAndLoadInternal(CrystalPrepareParam? param)
     {// this.semaphore.Lock()
-        param ??= CrystalStartParam.Default;
+        param ??= CrystalPrepareParam.Default;
         if (param.FromScratch)
         {
             await this.StorageGroup.PrepareAndCheck(this.CrystalConfiguration.StorageConfiguration, param, null).ConfigureAwait(false);
@@ -149,30 +153,32 @@ public class BigCrystalImpl<TData> : CrystalObject<TData>, IBigCrystal<TData>, I
             this.ReconstructObject();
 
             this.Prepared = true;
-            return CrystalStartResult.Success;
+            return CrystalSourceAndResult.Success;
         }
 
         if (this.Prepared)
         {
-            return CrystalStartResult.Success;
+            return CrystalSourceAndResult.Success;
         }
 
         // Storage group filer
         if (this.storageGroupFiler == null)
         {
             this.storageGroupFiler = this.Crystalizer.ResolveFiler(this.storageFileConfiguration);
-            if (await this.storageGroupFiler.PrepareAndCheck(this.Crystalizer, this.storageFileConfiguration).ConfigureAwait(false) != CrystalResult.Success)
+            var storageGroupResult = await this.storageGroupFiler.PrepareAndCheck(this.Crystalizer, this.storageFileConfiguration).ConfigureAwait(false);
+            if (storageGroupResult != CrystalResult.Success)
             {
-                if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Abort)
+                var sourceAndResult = new CrystalSourceAndResult(CrystalSource.StorageGroup, storageGroupResult);
+                if (await param.Query(sourceAndResult).ConfigureAwait(false) == AbortOrContinue.Abort)
                 {
-                    return CrystalStartResult.DirectoryError;
+                    return sourceAndResult;
                 }
             }
         }
 
         // Load storage group
         var result = await this.LoadStorageGroup(param).ConfigureAwait(false);
-        if (result != CrystalStartResult.Success)
+        if (result.IsFailure)
         {
             return result;
         }
@@ -187,11 +193,13 @@ public class BigCrystalImpl<TData> : CrystalObject<TData>, IBigCrystal<TData>, I
         if (this.crystalFiler == null)
         {
             this.crystalFiler = this.Crystalizer.ResolveFiler(this.crystalFileConfiguration);
-            if (await this.crystalFiler.PrepareAndCheck(this.Crystalizer, this.crystalFileConfiguration).ConfigureAwait(false) != CrystalResult.Success)
+            var crystalResult = await this.crystalFiler.PrepareAndCheck(this.Crystalizer, this.crystalFileConfiguration).ConfigureAwait(false);
+            if (crystalResult != CrystalResult.Success)
             {
-                if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Abort)
+                var sourceAndResult = new CrystalSourceAndResult(CrystalSource.File, crystalResult);
+                if (await param.Query(sourceAndResult).ConfigureAwait(false) == AbortOrContinue.Abort)
                 {
-                    return CrystalStartResult.DirectoryError;
+                    return sourceAndResult;
                 }
             }
         }
@@ -213,44 +221,44 @@ public class BigCrystalImpl<TData> : CrystalObject<TData>, IBigCrystal<TData>, I
         this.obj.Initialize(this, null, true);
     }
 
-    private async Task<CrystalStartResult> LoadStorageGroup(CrystalStartParam param)
+    private async Task<CrystalSourceAndResult> LoadStorageGroup(CrystalPrepareParam param)
     {// await this.semaphore.WaitAsync().ConfigureAwait(false)
-        CrystalStartResult result;
+        CrystalSourceAndResult result;
 
         var (dataResult, _) = await PathHelper.LoadData(this.storageGroupFiler).ConfigureAwait(false);
         if (dataResult.IsFailure)
         {
-            if (await param.Query(CrystalStartResult.DirectoryNotFound).ConfigureAwait(false) == AbortOrComplete.Complete)
+            if (await param.Query(new(CrystalSource.StorageGroup, dataResult.Result)).ConfigureAwait(false) == AbortOrContinue.Continue)
             {
                 result = await this.StorageGroup.PrepareAndCheck(this.CrystalConfiguration.StorageConfiguration, param, null).ConfigureAwait(false);
-                if (result == CrystalStartResult.Success || param.ForceStart)
+                if (result.IsSuccess || param.ForceStart)
                 {
-                    return CrystalStartResult.Success;
+                    return CrystalSourceAndResult.Success;
                 }
 
                 return result;
             }
             else
             {
-                return CrystalStartResult.DirectoryNotFound;
+                return new CrystalSourceAndResult(CrystalSource.StorageGroup, dataResult.Result);
             }
         }
 
         result = await this.StorageGroup.PrepareAndCheck(this.CrystalConfiguration.StorageConfiguration, param, dataResult.Data.Memory).ConfigureAwait(false);
-        if (result == CrystalStartResult.Success || param.ForceStart)
+        if (result.IsSuccess || param.ForceStart)
         {
-            return CrystalStartResult.Success;
+            return CrystalSourceAndResult.Success;
         }
 
         return result;
     }
 
-    private async Task<CrystalStartResult> LoadCrystal(CrystalStartParam param)
+    private async Task<CrystalStartResult> LoadCrystal(CrystalPrepareParam param)
     {// await this.semaphore.WaitAsync().ConfigureAwait(false)
         var (dataResult, _) = await PathHelper.LoadData(this.crystalFiler).ConfigureAwait(false);
         if (dataResult.IsFailure)
         {
-            if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Complete)
+            if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrContinue.Continue)
             {
                 return CrystalStartResult.Success;
             }
@@ -262,7 +270,7 @@ public class BigCrystalImpl<TData> : CrystalObject<TData>, IBigCrystal<TData>, I
 
         if (!this.DeserializeCrystal(dataResult.Data.Memory))
         {
-            if (await param.Query(CrystalStartResult.FileError).ConfigureAwait(false) == AbortOrComplete.Complete)
+            if (await param.Query(CrystalStartResult.FileError).ConfigureAwait(false) == AbortOrContinue.Continue)
             {
                 return CrystalStartResult.Success;
             }

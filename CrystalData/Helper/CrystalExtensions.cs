@@ -9,4 +9,7 @@ public static class CrystalExtensions
 
     public static bool IsFailure(this CrystalResult result)
         => result != CrystalResult.Success;
+
+    public static CrystalSourceAndResult FromSource(this CrystalResult result, CrystalSource crystalSource)
+        => new(crystalSource, result);
 }

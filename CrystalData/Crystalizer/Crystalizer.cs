@@ -209,21 +209,27 @@ public class Crystalizer
         return true;
     }*/
 
-    public async Task<CrystalStartResult> PrepareAndLoadAll(CrystalStartParam? param = null)
+    public async Task<CrystalSourceAndResult> PrepareAndLoadAll(CrystalPrepareParam? param = null)
     {
-        param ??= CrystalStartParam.Default;
+        param ??= CrystalPrepareParam.Default;
+
+        var journalResult = await this.PrepareJournal().ConfigureAwait(false);
+        if (journalResult.IsFailure())
+        {
+            return new(CrystalSource.Journal, journalResult);
+        }
 
         var crystals = this.crystals.Keys.ToArray();
         foreach (var x in crystals)
         {
             var result = await x.PrepareAndLoad(param).ConfigureAwait(false);
-            if (result != CrystalStartResult.Success)
+            if (result.IsFailure)
             {
                 return result;
             }
         }
 
-        return CrystalStartResult.Success;
+        return CrystalSourceAndResult.Success;
     }
 
     public async Task SaveAll(bool unload = false)
@@ -333,9 +339,6 @@ public class Crystalizer
 
     #region Misc
 
-    public string GetRootedFile(string file)
-        => PathHelper.GetRootedFile(this.RootDirectory, file);
-
     public static string GetRootedFile(Crystalizer? crystalizer, string file)
         => crystalizer == null ? file : PathHelper.GetRootedFile(crystalizer.RootDirectory, file);
 
@@ -398,7 +401,7 @@ public class Crystalizer
         return crystal!.Object;
     }
 
-    internal CrystalConfiguration GetCrystalConfiguration(Type type)
+    /*internal CrystalConfiguration GetCrystalConfiguration(Type type)
     {
         if (!this.configuration.CrystalConfigurations.TryGetValue(type, out var configuration))
         {
@@ -422,7 +425,7 @@ public class Crystalizer
         }
 
         return bigCrystalConfiguration;
-    }
+    }*/
 
     private async Task<CrystalResult> PrepareJournal()
     {

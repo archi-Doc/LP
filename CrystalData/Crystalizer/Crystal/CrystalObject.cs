@@ -142,13 +142,13 @@ public class CrystalObject<TData> : ICrystal<TData>
         }
     }
 
-    async Task<CrystalStartResult> ICrystal.PrepareAndLoad(CrystalStartParam? param)
+    async Task<CrystalSourceAndResult> ICrystal.PrepareAndLoad(CrystalPrepareParam? param)
     {
         using (this.semaphore.Lock())
         {
             if (this.Prepared)
             {// Prepared
-                return CrystalStartResult.Success;
+                return CrystalSourceAndResult.Success;
             }
 
             return await this.PrepareAndLoadInternal(param).ConfigureAwait(false);
@@ -256,14 +256,14 @@ public class CrystalObject<TData> : ICrystal<TData>
 
     #endregion
 
-    protected virtual async Task<CrystalStartResult> PrepareAndLoadInternal(CrystalStartParam? param)
+    protected virtual async Task<CrystalSourceAndResult> PrepareAndLoadInternal(CrystalPrepareParam? param)
     {// this.semaphore.Lock()
         if (this.Prepared)
         {
-            return CrystalStartResult.Success;
+            return CrystalSourceAndResult.Success;
         }
 
-        param ??= CrystalStartParam.Default;
+        param ??= CrystalPrepareParam.Default;
 
         // Filer
         if (this.filer == null)
@@ -272,9 +272,10 @@ public class CrystalObject<TData> : ICrystal<TData>
             var result = await this.filer.PrepareAndCheck(this.Crystalizer, this.CrystalConfiguration.FileConfiguration).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {// Filer error
-                if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Abort)
+                var sourceAndResult = result.FromSource(CrystalSource.File);
+                if (await param.Query(sourceAndResult).ConfigureAwait(false) == AbortOrContinue.Abort)
                 {
-                    return CrystalStartResult.DirectoryError;
+                    return sourceAndResult;
                 }
             }
         }
@@ -286,7 +287,11 @@ public class CrystalObject<TData> : ICrystal<TData>
             var result = await this.storage.PrepareAndCheck(this.Crystalizer, this.CrystalConfiguration.StorageConfiguration, false).ConfigureAwait(false);
             if (result != CrystalResult.Success)
             {
-                return CrystalStartResult.DirectoryError;
+                var sourceAndResult = result.FromSource(CrystalSource.Storage);
+                if (await param.Query(sourceAndResult).ConfigureAwait(false) == AbortOrContinue.Abort)
+                {
+                    return sourceAndResult;
+                }
             }
         }
 
@@ -336,7 +341,7 @@ public class CrystalObject<TData> : ICrystal<TData>
             }
             catch
             {
-                if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrComplete.Complete)
+                if (await param.Query(CrystalStartResult.FileNotFound).ConfigureAwait(false) == AbortOrContinue.Continue)
                 {
                     return DataLost();
                 }
@@ -354,9 +359,9 @@ public class CrystalObject<TData> : ICrystal<TData>
         this.Crystalizer.Journal?.RegisterToken(this.waypoint.JournalToken, this.obj);
 
         this.Prepared = true;
-        return CrystalStartResult.Success;
+        return CrystalSourceAndResult.Success;
 
-        CrystalStartResult DataLost()
+        CrystalSourceAndResult DataLost()
         {
             TinyhandSerializer.ReconstructObject<TData>(ref this.obj);
             var hash = FarmHash.Hash64(TinyhandSerializer.SerializeObject(this.obj));
@@ -373,7 +378,7 @@ public class CrystalObject<TData> : ICrystal<TData>
             this.waypoint = new(journalPosition, journalToken, hash);
 
             this.Prepared = true;
-            return CrystalStartResult.Success;
+            return CrystalSourceAndResult.Success;
         }
     }
 

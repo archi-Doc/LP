@@ -22,10 +22,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Arc.Threading" Version="0.21.1" />
+    <PackageReference Include="Arc.Threading" Version="0.21.2" />
     <PackageReference Include="Arc.Crypto" Version="1.13.0" />
     <PackageReference Include="Arc.Unit" Version="0.5.5" />
-    <PackageReference Include="AWSSDK.S3" Version="3.7.103.46" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.103.50" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
     <PackageReference Include="SimpleCommandLine" Version="0.18.0" />
     <PackageReference Include="Tinyhand" Version="0.48.1" />
