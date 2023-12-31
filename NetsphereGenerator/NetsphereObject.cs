@@ -583,7 +583,7 @@ public class NetsphereObject : VisceralObjectBase<NetsphereObject>
     {
         using (var cls = ssb.ScopeBrace($"private class {this.ClassName}"))
         {
-            this.GenerateBackend_Constructor(ssb, info);
+            this.GenerateBackend_CreateImpl(ssb, info);
 
             if (this.ServiceInterfaces != null)
             {
@@ -608,9 +608,9 @@ public class NetsphereObject : VisceralObjectBase<NetsphereObject>
         }
     }
 
-    internal void GenerateBackend_Constructor(ScopingStringBuilder ssb, GeneratorInformation info)
+    internal void GenerateBackend_CreateImpl(ScopingStringBuilder ssb, GeneratorInformation info)
     {
-        using (var scopeMethod = ssb.ScopeBrace($"public {this.ClassName}(ConnectionContext connectionContext)"))
+        using (var scopeMethod = ssb.ScopeBrace($"private static object CreateImpl(ConnectionContext connectionContext)"))
         {
             ssb.AppendLine($"var impl = connectionContext.ServiceProvider?.GetService(typeof({this.FullName})) as {this.FullName};");
             using (var scopeIf = ssb.ScopeBrace($"if (impl == null)"))
@@ -630,20 +630,7 @@ public class NetsphereObject : VisceralObjectBase<NetsphereObject>
             // Service filters
             ServiceFilterGroup.GenerateInitialize(ssb, "this", "connectionContext.ServiceProvider", this.ClassFilters?.Items);
 
-            // Set ServerContext
-            /*if (this.NetServiceBase != null)
-            {
-                if (this.NetServiceBase.Generics_IsGeneric)
-                {
-                    ssb.AppendLine($"(({this.NetServiceBase.FullName})impl).Context = ({this.NetServiceBase.Generics_Arguments[0].FullName})context;");
-                }
-                else
-                {
-                    ssb.AppendLine($"(({this.NetServiceBase.FullName})impl).Context = context;");
-                }
-            }*/
-
-            ssb.AppendLine("this.impl = impl;");
+            ssb.AppendLine("return impl;");
         }
     }
 
@@ -853,7 +840,7 @@ public class NetsphereObject : VisceralObjectBase<NetsphereObject>
         var serviceIdString = serviceInterface.NetServiceInterfaceAttribute!.ServiceId.ToString("x");
         using (var scopeMethod = ssb.ScopeBrace($"public static ConnectionContext.ServiceInfo ServiceInfo_{serviceIdString}()"))
         {
-            ssb.AppendLine($"var si = new ConnectionContext.ServiceInfo(0x{serviceIdString}u, static x => new {this.ClassName}(x));");
+            ssb.AppendLine($"var si = new ConnectionContext.ServiceInfo(0x{serviceIdString}u, CreateImpl);");
             if (serviceInterface.ServiceMethods != null)
             {
                 foreach (var x in serviceInterface.ServiceMethods.Values)

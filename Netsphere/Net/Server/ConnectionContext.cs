@@ -10,14 +10,14 @@ public class ConnectionContext
 
     public delegate INetService CreateFrontendDelegate(ClientConnection clientConnection);
 
-    public delegate object CreateBackendDelegate(ConnectionContext connectionContext);
+    public delegate object CreateImplDelegate(ConnectionContext connectionContext);
 
     public class ServiceInfo
     {
-        public ServiceInfo(uint serviceId, CreateBackendDelegate createBackend)
+        public ServiceInfo(uint serviceId, CreateImplDelegate createImpl)
         {
             this.ServiceId = serviceId;
-            this.CreateBackend = createBackend;
+            this.CreateImplDelegate = createImpl;
         }
 
         public void AddMethod(ServiceMethod serviceMethod) => this.serviceMethods.TryAdd(serviceMethod.Id, serviceMethod);
@@ -26,7 +26,7 @@ public class ConnectionContext
 
         public uint ServiceId { get; }
 
-        public CreateBackendDelegate CreateBackend { get; }
+        public CreateImplDelegate CreateImplDelegate { get; }
 
         private Dictionary<ulong, ServiceMethod> serviceMethods = new();
     }
@@ -41,7 +41,7 @@ public class ConnectionContext
 
         public ulong Id { get; }
 
-        public object? ServerInstance { get; init; }
+        public object? ImplInstance { get; init; }
 
         public ServiceDelegate Invoke { get; }
     }
@@ -65,7 +65,7 @@ public class ConnectionContext
 
     private object syncObject = new();
     private Dictionary<ulong, ServiceMethod> idToServiceMethod = new();
-    private Dictionary<uint, object> idToInstance = new();
+    private Dictionary<uint, object> idToImpl = new();
 
     #endregion
 
@@ -120,22 +120,22 @@ public class ConnectionContext
                     goto SendNoNetService;
                 }
 
-                // Get Backend instance.
-                if (!this.idToInstance.TryGetValue(serviceId, out var backendInstance))
+                // Get Impl instance.
+                if (!this.idToImpl.TryGetValue(serviceId, out var implInstance))
                 {
                     try
                     {
-                        backendInstance = serviceInfo.CreateBackend(this);
+                        implInstance = serviceInfo.CreateImplDelegate(this);
                     }
                     catch
                     {
                         goto SendNoNetService;
                     }
 
-                    this.idToInstance.TryAdd(serviceId, backendInstance);
+                    this.idToImpl.TryAdd(serviceId, implInstance);
                 }
 
-                serviceMethod = serviceMethod with { ServerInstance = backendInstance, };
+                serviceMethod = serviceMethod with { ImplInstance = implInstance, };
                 this.idToServiceMethod.TryAdd(transmissionContext.DataId, serviceMethod);
             }
         }
@@ -143,7 +143,7 @@ public class ConnectionContext
         TransmissionContext.AsyncLocal.Value = transmissionContext;
         try
         {
-            await serviceMethod.Invoke(serviceMethod.ServerInstance!, transmissionContext).ConfigureAwait(false);
+            await serviceMethod.Invoke(serviceMethod.ImplInstance!, transmissionContext).ConfigureAwait(false);
             try
             {
                 var result = NetResult.Success; // context.Result
