@@ -67,10 +67,10 @@ public class CubicCongestionControl : ICongestionControl
     public Connection Connection { get; set; }
 
     public int NumberInFlight
-        => this.genesInFlight.Count;
+        => this.numberInFlight;
 
     public bool IsCongested
-        => this.genesInFlight.Count >= this.capacityInt;
+        => this.numberInFlight >= this.capacityInt;
 
     public double FailureRatio
     {
@@ -91,7 +91,7 @@ public class CubicCongestionControl : ICongestionControl
     private readonly ILogger? logger;
 
     private readonly object syncObject = new();
-    private readonly UnorderedLinkedList<SendGene> genesInFlight = new(); // Retransmission mics, gene
+    private int numberInFlight;
 
     // Smoothing transmissions
     private double capacity; // Equivalent to cwnd, but increases gradually to prevent mass transmission at once.
@@ -130,36 +130,16 @@ public class CubicCongestionControl : ICongestionControl
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     void ICongestionControl.AddInFlight(SendGene sendGene, long rto)
-    {
-        lock (this.syncObject)
-        {
-            if (sendGene.Node is UnorderedLinkedList<SendGene>.Node node)
-            {
-                this.genesInFlight.MoveToLast(node);
-            }
-            else
-            {
-                sendGene.Node = this.genesInFlight.AddLast(sendGene);
-            }
-        }
-    }
+        => Interlocked.Increment(ref this.numberInFlight);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     void ICongestionControl.RemoveInFlight(SendGene sendGene, bool ack)
     {
-        lock (this.syncObject)
+        Interlocked.Decrement(ref this.numberInFlight);
+        if (ack)
         {
-            if (ack)
-            {
-                this.ackCount++;
-                this.ReportDeliverySuccess();
-            }
-
-            if (sendGene.Node is UnorderedLinkedList<SendGene>.Node node)
-            {
-                this.genesInFlight.Remove(node);
-                sendGene.Node = default;
-            }
+            Interlocked.Increment(ref this.ackCount);
+            this.ReportDeliverySuccess();
         }
     }
 
@@ -182,7 +162,7 @@ public class CubicCongestionControl : ICongestionControl
             this.ProcessFactor();
 
             // CongestionControl: Cubic (cwnd)
-            this.capacityLimited |= (this.genesInFlight.Count * 8) >= (this.capacityInt * 7);
+            this.capacityLimited |= (this.numberInFlight * 8) >= (this.capacityInt * 7);
             if (this.cubicCount++ >= CubicThreshold)
             {
                 if (this.capacityLimited)
@@ -203,9 +183,6 @@ public class CubicCongestionControl : ICongestionControl
             this.capacityInt = (int)this.capacity;
 
             // this.logger?.TryGet(LogLevel.Debug)?.Log($"{(capacityLimited ? "CAP " : string.Empty)}current/cap/cwnd {this.NumberOfGenesInFlight}/{this.capacity:F1}/{this.cwnd:F1} regen {this.regen:F2} boost {this.boost:F2} mics/max {this.boostMics}/{this.boostMicsMax}");
-
-            // Resend
-            this.ProcessResend(netSender);
         }
 
         return true;
@@ -270,43 +247,9 @@ public class CubicCongestionControl : ICongestionControl
         this.ssthresh = this.cwnd;
     }
 
-    private void ProcessResend(NetSender netSender)
-    {// lock (this.syncObject)
-        SendGene? gene;
-        while (netSender.CanSend)
-        {// Retransmission. Do not check IsCongested, as it causes Genes in-flight to be stuck and stops transmission.
-            var firstNode = this.genesInFlight.First;
-            if (firstNode is null)
-            {
-                break;
-            }
-
-            gene = firstNode.Value;
-            if ((Mics.FastSystem - gene.SendTransmission.Connection.RetransmissionTimeout) < gene.SentMics)
-            {
-                break;
-            }
-
-            if (gene.SentMics > this.validDeliveryMics)
-            {
-                this.ReportDeliveryFailure();
-            }
-
-            if (!gene.Send_NotThreadSafe(netSender, 0))
-            {// Cannot send
-                this.genesInFlight.Remove(firstNode);
-                gene.Node = default;
-            }
-            else
-            {// Move to the last.
-                this.genesInFlight.MoveToLast(firstNode);
-            }
-        }
-    }
-
     private bool CalculateCapacity(long elapsedMics, double elapsedMilliseconds)
     {
-        if (this.capacityInt <= this.genesInFlight.Count)
+        if (this.capacityInt <= this.numberInFlight)
         {// Capacity limited
             if (this.boostMics > 0)
             {// Boost
@@ -354,7 +297,7 @@ public class CubicCongestionControl : ICongestionControl
         }
         else
         {// Not capacity limited (capacity > this.genesInFlight.Count).
-            var upperLimit = this.genesInFlight.Count + this.boost;
+            var upperLimit = this.numberInFlight + this.boost;
             if (this.capacity > upperLimit)
             {
                 this.capacity = upperLimit;
