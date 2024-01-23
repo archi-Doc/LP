@@ -44,7 +44,7 @@ internal partial class AckBuffer
                 queue ??= new();
                 this.connectionQueue.Enqueue(connection);
 
-                connection.AckMics = Mics.GetSystem() + NetConstants.AckDelayMics;
+                connection.AckMics = Mics.FastSystem + NetConstants.AckDelayMics;
                 connection.AckQueue = queue;
             }
 
@@ -70,7 +70,7 @@ internal partial class AckBuffer
                 queue ??= new();
                 this.connectionQueue.Enqueue(connection);
 
-                connection.AckMics = Mics.GetSystem() + NetConstants.AckDelayMics;
+                connection.AckMics = Mics.FastSystem + NetConstants.AckDelayMics;
                 connection.AckQueue = queue;
             }
 
